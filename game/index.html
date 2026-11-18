@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Port Azahar 3D - Make GTA 6</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+    body, html { width: 100%; height: 100%; overflow: hidden; background: #0b0f19; font-family: system-ui, -apple-system, sans-serif; color: #fff; }
+    #canvas-container { width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 1; }
+    #hud { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; padding: 20px; }
+    .hud-top { display: flex; justify-content: space-between; align-items: flex-start; width: 100%; }
+    .hud-left { display: flex; flex-direction: column; gap: 8px; }
+    .bar-container { background: rgba(0,0,0,0.6); border: 2px solid rgba(255,255,255,0.2); border-radius: 4px; width: 180px; height: 16px; overflow: hidden; position: relative; }
+    .bar-fill { height: 100%; width: 100%; transition: width 0.1s linear; }
+    #health-fill { background: #e74c3c; }
+    #armor-fill { background: #3498db; }
+    .bar-text { position: absolute; width: 100%; text-align: center; font-size: 10px; font-weight: bold; line-height: 14px; text-shadow: 1px 1px #000; }
+    .hud-stats { background: rgba(0,0,0,0.7); padding: 10px 16px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); font-size: 18px; font-weight: 800; letter-spacing: 1px; color: #f1c40f; text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
+    .wanted-stars { font-size: 20px; color: #f1c40f; letter-spacing: 4px; margin-top: 4px; text-shadow: 0 0 8px rgba(241,196,15,0.8); }
+    .hud-right { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
+    #minimap-wrapper { width: 160px; height: 160px; border-radius: 50%; border: 3px solid #fff; overflow: hidden; background: #111; box-shadow: 0 4px 12px rgba(0,0,0,0.6); pointer-events: auto; }
+    #minimap { width: 100%; height: 100%; }
+    .speedometer { background: rgba(0,0,0,0.7); padding: 6px 12px; border-radius: 6px; font-family: monospace; font-size: 16px; font-weight: bold; color: #00ffff; border: 1px solid rgba(0,255,255,0.3); display: none; }
+    .hud-bottom { display: flex; justify-content: space-between; align-items: flex-end; width: 100%; }
+    .mission-box { background: rgba(0,0,0,0.8); padding: 12px 20px; border-radius: 8px; border-left: 4px solid #3498db; max-width: 350px; pointer-events: auto; }
+    .mission-title { font-size: 13px; text-transform: uppercase; color: #3498db; font-weight: bold; margin-bottom: 2px; }
+    .mission-desc { font-size: 15px; font-weight: 600; color: #fff; margin-bottom: 4px; }
+    .mission-timer { font-size: 12px; font-family: monospace; color: #e74c3c; font-weight: bold; }
+    
+    #dialogue-banner { position: absolute; bottom: 120px; left: 50%; transform: translateX(-50%); background: rgba(10,15,30,0.9); border: 2px solid #f1c40f; padding: 16px 32px; border-radius: 12px; text-align: center; max-width: 600px; z-index: 20; opacity: 0; transition: opacity 0.3s ease; pointer-events: none; box-shadow: 0 8px 24px rgba(0,0,0,0.8); }
+    #dialogue-speaker { font-size: 12px; color: #f1c40f; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 4px; font-weight: bold; }
+    #dialogue-text { font-size: 18px; font-weight: bold; color: #fff; line-height: 1.4; }
+
+    #district-banner { position: absolute; top: 80px; left: 50%; transform: translateX(-50%); font-size: 24px; font-weight: 900; letter-spacing: 6px; text-transform: uppercase; color: #fff; text-shadow: 0 2px 10px rgba(0,0,0,0.9), 0 0 20px rgba(52,152,219,0.8); opacity: 0; transition: opacity 0.5s ease; z-index: 15; pointer-events: none; }
+
+    #title-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, rgba(11,15,25,0.95), rgba(30,15,40,0.92)); z-index: 100; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 40px; text-align: center; pointer-events: auto; }
+    .title-logo { font-size: 56px; font-weight: 900; letter-spacing: 8px; text-transform: uppercase; color: #f1c40f; text-shadow: 0 0 20px rgba(241,196,15,0.6), 0 5px 15px rgba(0,0,0,0.9); margin-bottom: 10px; }
+    .title-sub { font-size: 20px; font-weight: 600; color: #3498db; letter-spacing: 3px; margin-bottom: 30px; text-transform: uppercase; }
+    .story-card { background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.15); padding: 20px 30px; border-radius: 12px; max-width: 600px; margin-bottom: 30px; font-size: 15px; line-height: 1.6; color: #ccc; }
+    .controls-hint { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; text-align: left; font-size: 13px; color: #aaa; margin-bottom: 30px; background: rgba(0,0,0,0.4); padding: 16px; border-radius: 8px; }
+    .controls-hint span { color: #fff; font-weight: bold; }
+    .btn-group { display: flex; gap: 20px; }
+    .menu-btn { background: #f1c40f; color: #111; border: none; padding: 14px 36px; font-size: 18px; font-weight: 900; letter-spacing: 2px; border-radius: 8px; cursor: pointer; transition: transform 0.1s, background 0.2s; box-shadow: 0 4px 15px rgba(241,196,15,0.4); }
+    .menu-btn:hover { transform: translateY(-2px); background: #f39c12; }
+    .menu-btn.secondary { background: rgba(255,255,255,0.1); color: #fff; border: 1px solid rgba(255,255,255,0.3); }
+    .menu-btn.secondary:hover { background: rgba(255,255,255,0.2); }
+
+    #gameover-screen, #ending-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 100; display: none; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 40px; }
+    .go-title { font-size: 48px; font-weight: 900; letter-spacing: 6px; text-transform: uppercase; margin-bottom: 20px; }
+    #gameover-screen .go-title { color: #e74c3c; text-shadow: 0 0 20px rgba(231,76,60,0.8); }
+    #ending-screen .go-title { color: #2ecc71; text-shadow: 0 0 20px rgba(46,204,113,0.8); }
+
+    #pickup-popup { position: absolute; top: 30%; left: 50%; transform: translateX(-50%); font-size: 22px; font-weight: bold; color: #2ecc71; text-shadow: 0 2px 8px rgba(0,0,0,0.9); opacity: 0; transition: opacity 0.3s; z-index: 25; pointer-events: none; }
+  </style>
+</head>
+<body>
+  <div id="canvas-container"></div>
+
+  <div id="hud">
+    <div class="hud-top">
+      <div class="hud-left">
+        <div class="bar-container">
+          <div id="health-fill" class="bar-fill" style="width: 100%;"></div>
+          <div class="bar-text">HEALTH</div>
+        </div>
+        <div class="bar-container">
+          <div id="armor-fill" class="bar-fill" style="width: 100%;"></div>
+          <div class="bar-text">ARMOR</div>
+        </div>
+        <div id="wanted-display" class="wanted-stars">☆☆☆☆☆</div>
+      </div>
+      <div class="hud-right">
+        <div id="minimap-wrapper"><canvas id="minimap"></canvas></div>
+        <div id="speedometer" class="speedometer">0 MPH</div>
+        <div class="hud-stats" id="cash-display">$500</div>
+      </div>
+    </div>
+    <div class="hud-bottom">
+      <div class="mission-box" id="mission-box">
+        <div class="mission-title" id="mission-title">Mission: First Run</div>
+        <div class="mission-desc" id="mission-desc">Drive to the docks and pick up Marisol's package.</div>
+        <div class="mission-timer" id="mission-timer"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="district-banner">Port Azahar</div>
+  <div id="dialogue-banner">
+    <div id="dialogue-speaker">Marisol Kane</div>
+    <div id="dialogue-text">Watch your step out there, Dario.</div>
+  </div>
+  <div id="pickup-popup">+ $1,000 Cash</div>
+
+  <div id="title-screen">
+    <div class="title-logo">Port Azahar 3D</div>
+    <div class="title-sub">Make GTA 6 Competition Entry</div>
+    <div class="story-card">
+      You are <b>Dario Venn</b>, a seasoned wheelman in the coastal neon metropolis of Port Azahar. Fixer Marisol Kane has five high-stakes jobs lined up across the Docks, Neon Mile, Old Town, Marina, and The Hills. Dodge the cops, outrun rivals, and take control of the city.
+    </div>
+    <div class="controls-hint">
+      <div><span>W A S D / Arrows:</span> Move / Drive</div>
+      <div><span>Shift:</span> Sprint / Handbrake</div>
+      <div><span>E / F:</span> Enter / Exit Car</div>
+      <div><span>Space:</span> Jump / Handbrake</div>
+      <div><span>Click / J:</span> Attack / Shoot</div>
+      <div><span>M:</span> Toggle Audio Mute</div>
+    </div>
+    <div class="btn-group">
+      <button class="menu-btn" id="start-btn">New Game</button>
+      <button class="menu-btn secondary" id="continue-btn" style="display:none;">Continue</button>
+    </div>
+  </div>
+
+  <div id="gameover-screen">
+    <div class="go-title" id="go-title">Wasted</div>
+    <div class="story-card" id="go-msg">You were busted or taken down. Hospital fees applied.</div>
+    <button class="menu-btn" id="respawn-btn">Respawn</button>
+  </div>
+
+  <div id="ending-screen">
+    <div class="go-title">City Conquered</div>
+    <div class="story-card">You completed all jobs for Marisol Kane and secured your legacy in Port Azahar. Free roam is now unlocked!</div>
+    <button class="menu-btn" id="freeroam-btn">Free Roam</button>
+  </div>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "./vendor/three/three.module.min.js",
+        "three/addons/": "./vendor/three/jsm/"
+      }
+    }
+  </script>
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
