@@ -284,10 +284,19 @@ class PortAzaharGame {
     if (this._lastIsNight !== isNight && this.buildings) {
       this._lastIsNight = isNight;
       const targetTex = isNight ? this.nightBuildingTexture : this.dayBuildingTexture;
-      if (targetTex) {
+      if (targetTex || !isNight) {
         for (const b of this.buildings) {
-          if (b.material && b.material.map !== targetTex) {
+          if (b.material) {
             b.material.map = targetTex;
+            if (isNight) {
+              b.material.emissive.set(0xffffff);
+              b.material.emissiveMap = targetTex;
+              b.material.emissiveIntensity = 0.85;
+            } else {
+              b.material.emissive.set(0x000000);
+              b.material.emissiveMap = null;
+              b.material.emissiveIntensity = 0;
+            }
             b.material.needsUpdate = true;
           }
         }

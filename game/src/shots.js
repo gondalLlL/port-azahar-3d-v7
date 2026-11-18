@@ -118,11 +118,17 @@ export function handleStagedShot(urlParams, game) {
     game.camera.position.set(340, 3, 430);
     game.camera.lookAt(340, 1.5, 420);
 
-    // 2 parked traffic cars on the same road within 15m of player
-    const car1 = game.spawnCar(340, 405, false);
-    if (car1) game.trafficCars.push(car1);
-    const car2 = game.spawnCar(340, 435, false);
-    if (car2) game.trafficCars.push(car2);
+    // 2 parked traffic cars on the sides of the road
+    const car1 = game.spawnCar(335, 414, false);
+    if (car1) {
+      car1.mesh.rotation.y = 0;
+      game.trafficCars.push(car1);
+    }
+    const car2 = game.spawnCar(345, 407, false);
+    if (car2) {
+      car2.mesh.rotation.y = 0;
+      game.trafficCars.push(car2);
+    }
 
     // Two point lights for neon glow
     const plight1 = new THREE.PointLight(0xff2d95, 60, 60);
