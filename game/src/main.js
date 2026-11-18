@@ -70,6 +70,26 @@ class PortAzaharGame {
     this.buildings = worldData.buildings;
     this.buildingBoxes = worldData.buildingBoxes;
     this.water = worldData.water;
+    this.dayBuildingTexture = worldData.buildingTexture;
+    this.nightBuildingTexture = worldData.nightTexture;
+  }
+
+  addWheels(group) {
+    const wheelGeo = new THREE.CylinderGeometry(0.35, 0.35, 0.25, 16);
+    wheelGeo.rotateZ(Math.PI / 2);
+    const wheelMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8 });
+    const wheelPositions = [
+      { x: -1.1, y: 0.35, z: 1.4 },
+      { x: 1.1, y: 0.35, z: 1.4 },
+      { x: -1.1, y: 0.35, z: -1.4 },
+      { x: 1.1, y: 0.35, z: -1.4 },
+    ];
+    wheelPositions.forEach(pos => {
+      const w = new THREE.Mesh(wheelGeo, wheelMat);
+      w.position.set(pos.x, pos.y, pos.z);
+      w.castShadow = true;
+      group.add(w);
+    });
   }
 
   initPlayer() {
@@ -102,7 +122,10 @@ class PortAzaharGame {
     const cabinMat = new THREE.MeshStandardMaterial({ color: 0x1a202c, metalness: 0.8, roughness: 0.1 });
     const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.7, 2.2), cabinMat);
     cabin.position.set(0, 1.15, -0.2);
+    cabin.castShadow = true;
     carGroup.add(cabin);
+
+    this.addWheels(carGroup);
 
     carGroup.position.set(0, 0.5, 10);
     this.scene.add(carGroup);
@@ -175,14 +198,41 @@ class PortAzaharGame {
     const carMat = new THREE.MeshStandardMaterial({ color, metalness: 0.5, roughness: 0.3 });
     const body = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.7, 4.2), carMat);
     body.position.y = 0.5;
+    body.castShadow = true;
     group.add(body);
 
     if (isPolice) {
-      const barMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-      const bar = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.2, 0.4), barMat);
-      bar.position.set(0, 1.0, 0);
-      group.add(bar);
+      const whiteCabinMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.3 });
+      const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.7, 2.2), whiteCabinMat);
+      cabin.position.set(0, 1.15, -0.2);
+      cabin.castShadow = true;
+      group.add(cabin);
+
+      const doorMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.3 });
+      const leftDoor = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.5, 2.0), doorMat);
+      leftDoor.position.set(-1.06, 0.5, 0);
+      group.add(leftDoor);
+      const rightDoor = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.5, 2.0), doorMat);
+      rightDoor.position.set(1.06, 0.5, 0);
+      group.add(rightDoor);
+
+      const leftBarMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+      const rightBarMat = new THREE.MeshBasicMaterial({ color: 0x0055ff });
+      const leftBar = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.2, 0.4), leftBarMat);
+      leftBar.position.set(-0.3, 1.6, 0);
+      group.add(leftBar);
+      const rightBar = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.2, 0.4), rightBarMat);
+      rightBar.position.set(0.3, 1.6, 0);
+      group.add(rightBar);
+    } else {
+      const cabinMat = new THREE.MeshStandardMaterial({ color: 0x1a202c, metalness: 0.8, roughness: 0.1 });
+      const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.7, 2.2), cabinMat);
+      cabin.position.set(0, 1.15, -0.2);
+      cabin.castShadow = true;
+      group.add(cabin);
     }
+
+    this.addWheels(group);
 
     group.position.set(x, 0.5, z);
     this.scene.add(group);
@@ -217,20 +267,40 @@ class PortAzaharGame {
     this.audio.playMissionSting();
   }
 
+  applyTimeOfDay() {
+    const sunAngle = (this.timeOfDay / 24) * Math.PI * 2;
+    if (this.dirLight) {
+      this.dirLight.position.set(Math.cos(sunAngle) * 600, Math.sin(sunAngle) * 600, 300);
+    }
+    const isNight = this.timeOfDay < 6 || this.timeOfDay > 18;
+    const skyColor = isNight ? 0x050814 : 0x87ceeb;
+    if (this.scene && this.scene.background) {
+      this.scene.background.set(skyColor);
+      this.scene.fog.color.set(skyColor);
+    }
+    if (this.hemiLight) this.hemiLight.intensity = isNight ? 0.2 : 0.8;
+    if (this.dirLight) this.dirLight.intensity = isNight ? 0.1 : 1.2;
+
+    if (this._lastIsNight !== isNight && this.buildings) {
+      this._lastIsNight = isNight;
+      const targetTex = isNight ? this.nightBuildingTexture : this.dayBuildingTexture;
+      if (targetTex) {
+        for (const b of this.buildings) {
+          if (b.material && b.material.map !== targetTex) {
+            b.material.map = targetTex;
+            b.material.needsUpdate = true;
+          }
+        }
+      }
+    }
+  }
+
   update(dt) {
     if (this.freezeSimulation) return;
 
     // Time of day cycle
     this.timeOfDay = (this.timeOfDay + dt * this.daySpeed) % 24;
-    const sunAngle = (this.timeOfDay / 24) * Math.PI * 2;
-    this.dirLight.position.set(Math.cos(sunAngle) * 600, Math.sin(sunAngle) * 600, 300);
-    
-    const isNight = this.timeOfDay < 6 || this.timeOfDay > 18;
-    const skyColor = isNight ? 0x050814 : 0x87ceeb;
-    this.scene.background.set(skyColor);
-    this.scene.fog.color.set(skyColor);
-    this.hemiLight.intensity = isNight ? 0.2 : 0.8;
-    this.dirLight.intensity = isNight ? 0.1 : 1.2;
+    this.applyTimeOfDay();
 
     // Input handling
     const forward = this.input.isDown('KeyW') || this.input.isDown('ArrowUp');
@@ -352,6 +422,28 @@ class PortAzaharGame {
       for (let z = -720; z <= 720; z += 160) {
         ctx.fillRect(x, z, 100, 100);
       }
+    }
+
+    // Draw traffic car blips
+    if (this.trafficCars) {
+      ctx.fillStyle = '#ffffff';
+      this.trafficCars.forEach(tc => {
+        const cp = tc.mesh.position;
+        ctx.beginPath();
+        ctx.arc(cp.x, cp.z, 10, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    }
+
+    // Draw police car blips
+    if (this.policeCars) {
+      ctx.fillStyle = '#e53e3e';
+      this.policeCars.forEach(pc => {
+        const pp = pc.mesh.position;
+        ctx.beginPath();
+        ctx.arc(pp.x, pp.z, 10, 0, Math.PI * 2);
+        ctx.fill();
+      });
     }
 
     // Draw player blip

@@ -152,5 +152,5 @@ export function generateWorld(scene, rng) {
     }
   }
 
-  return { buildings, buildingBoxes, water };
+  return { buildings, buildingBoxes, water, buildingTexture, nightTexture };
 }
